@@ -7,12 +7,69 @@ import {
   updateBuilderAddress,
   setupProcessor,
   resetState,
+  getTransactionDetails,
+  getTokenMetadata,
 } from "./transferProcessor";
 import {
   calculateProfitByToken,
   formatProfitsWithDecimals,
 } from "./profitCalculator";
-import { trace } from "./assetChanges";
+
+/**
+ * Calculate profit from a transaction hash
+ */
+export async function calculateProfitFromTxHash(txHash: string) {
+  try {
+    // Get transaction details
+    let transactionDetails: {
+      blockNumber: number;
+      senderAddress: string;
+      contractAddress: string;
+      trace: unknown;
+      logs: TransferLog[];
+    };
+    try {
+      transactionDetails = await getTransactionDetails(txHash);
+    } catch (error) {
+      console.error(`Failed - Could not get transaction details: ${error}`);
+      throw error;
+    }
+
+    const { blockNumber, senderAddress, contractAddress, trace, logs } =
+      transactionDetails;
+
+    // Calculate profit using the extracted data
+    console.log(`Calculating profit for tx ${txHash}...`);
+    let profit: { token: string; profit: bigint }[];
+    try {
+      profit = await calculateProfit(
+        logs,
+        trace as TraceCall[],
+        blockNumber,
+        contractAddress,
+        senderAddress
+      );
+
+      // Log profit summary
+      console.log("Profit Summary:");
+      for (const item of profit) {
+        console.log(
+          `  Token: ${item.token}, Profit: ${item.profit.toString()}`
+        );
+      }
+    } catch (error) {
+      console.error(`Failed - Could not calculate profit: ${error}`);
+      throw error;
+    }
+
+    console.log(`========== COMPLETED ANALYSIS FOR TX: ${txHash} ==========`);
+    return profit;
+  } catch (error) {
+    console.error(`ANALYSIS FAILED FOR TX ${txHash}: ${error}`);
+    console.error(`Stack trace: ${(error as Error).stack}`);
+    throw error;
+  }
+}
 
 /**
  * Main function to calculate profit from a transaction
@@ -24,27 +81,61 @@ export async function calculateProfit(
   contract: string,
   sender: string
 ): Promise<{ token: string; profit: bigint }[]> {
-  // Reset state for clean calculation
-  resetState();
+  try {
+    // Reset state for clean calculation
+    resetState();
 
-  // Setup the processor
-  await updateBuilderAddress(blockNumber);
-  setupProcessor(contract, sender);
+    // Setup the processor
+    try {
+      await updateBuilderAddress(blockNumber);
+    } catch (error) {
+      console.error(`Failed to update builder address: ${error}`);
+      // Continue with processing even if this fails
+    }
 
-  // Process transfer logs and trace data
-  for (const log of logs.filter(
-    (log) =>
-      log.name === "Transfer" ||
-      (log.name === "Withdrawal" && WETH_LIKE_TOKENS.has(log.raw.address))
-  )) {
-    processTransferLog(log);
+    setupProcessor(contract, sender);
+
+    // Process transfer logs and trace data
+    const filteredLogs = logs.filter(
+      (log) =>
+        log.name === "Transfer" ||
+        (log.name === "Withdrawal" && WETH_LIKE_TOKENS.has(log.raw.address))
+    );
+
+    try {
+      for (const log of filteredLogs) {
+        try {
+          processTransferLog(log);
+        } catch (error) {
+          console.error(`Error processing log: ${error}`);
+          // Continue with next log
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to process logs: ${error}`);
+      // Continue with trace processing
+    }
+
+    try {
+      processTraceCall(trace);
+    } catch (error) {
+      console.error(`Failed to process trace calls: ${error}`);
+      // Continue with profit calculation
+    }
+
+    // Calculate profit
+    try {
+      const profit = calculateProfitByToken();
+      return profit;
+    } catch (error) {
+      console.error(`Failed to calculate profit: ${error}`);
+      throw error;
+    }
+  } catch (error) {
+    console.error(`Fatal error in calculateProfit: ${error}`);
+    console.error(`Stack trace: ${(error as Error).stack}`);
+    throw error;
   }
-
-  processTraceCall(trace);
-
-  // Calculate profit
-  const profit = calculateProfitByToken();
-  return profit;
 }
 
 /**
@@ -53,12 +144,29 @@ export async function calculateProfit(
 export async function displayProfitResults(
   profitResults: { token: string; profit: bigint }[]
 ): Promise<void> {
-  const formattedProfits = await formatProfitsWithDecimals(profitResults);
   console.log("Profit Summary:");
-  for (const { token, symbol, decimals, profit } of formattedProfits) {
-    console.log(
-      `Token: ${token}, Profit: ${profit.toFixed(decimals)} ${symbol}`
-    );
+
+  for (const result of profitResults) {
+    try {
+      // Try to get token metadata for better display
+      const metadata = await getTokenMetadata(result.token);
+      const decimals = metadata.decimals || 18;
+      const symbol = metadata.symbol || "ETH";
+
+      // Calculate human-readable profit
+      const profit = Number(result.profit) / 10 ** decimals;
+
+      console.log(
+        `Token: ${result.token} (${symbol}), Profit: ${profit.toFixed(
+          decimals
+        )} ${symbol}`
+      );
+    } catch (error) {
+      // If metadata can't be retrieved, display raw data
+      console.log(
+        `Token: ${result.token}, Profit: ${Number(result.profit) / 1e18} (raw)`
+      );
+    }
   }
 }
 
@@ -66,15 +174,12 @@ export async function displayProfitResults(
 if (require.main === module) {
   const runExample = async () => {
     try {
-      const results = await calculateProfit(
-        logs,
-        trace,
-        22100259,
-        "0xbA58C9b54aCb83E66B8B58ED31E7b5e3adc74B00",
-        "0xE556E36537FD64A5A9572961f0a5aa0f61997e68"
-      );
+      // Example using transaction hash
+      const txHash =
+        "0x4eaa9a30fabe363c883a557765f1512747011304db589dcc686156b42b613d5e";
+      const results = await calculateProfitFromTxHash(txHash);
 
-      displayProfitResults(results);
+      await displayProfitResults(results);
     } catch (error) {
       console.error("Error calculating profit:", error);
     }
