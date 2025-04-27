@@ -99,7 +99,8 @@ export async function calculateProfit(
     const filteredLogs = logs.filter(
       (log) =>
         log.name === "Transfer" ||
-        (log.name === "Withdrawal" && WETH_LIKE_TOKENS.has(log.raw.address))
+        (log.name === "Withdrawal" && WETH_LIKE_TOKENS.has(log.raw.address)) ||
+        (log.name === "Deposit" && WETH_LIKE_TOKENS.has(log.raw.address))
     );
 
     try {

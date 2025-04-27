@@ -34,6 +34,8 @@ const TRANSFER_EVENT_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const WITHDRAWAL_EVENT_TOPIC =
   "0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65";
+const DEPOSIT_EVENT_TOPIC =
+  "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c";
 export const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 /**
@@ -117,14 +119,16 @@ export function processTransfer(
   initializeBalanceChanges(token, from, false, isFromSenderOrContract);
 
   // Update balances
-  if (to !== "0x0") {
+  if (to !== NULL_ADDRESS) {
     revenueBalanceChanges[token][to].amount += amount;
   }
   if (isBuilder(to)) {
     revenueBalanceChanges[token][to].amount *= -1n;
     revenueBalanceChanges[token][to].type = "Cost";
   } else {
-    costBalanceChanges[token][from].amount -= amount;
+    if (from !== NULL_ADDRESS) {
+      costBalanceChanges[token][from].amount -= amount;
+    }
   }
 }
 
@@ -166,9 +170,27 @@ export function processTransferLog(log: TransferLog): void {
 
         console.log(`Withdrawal: ${from}, amount: ${amount.toString()}`);
         // Treat it like a WETH transfer out
-        processTransfer(token, from, "0x0", amount);
+        processTransfer(token, from, NULL_ADDRESS, amount);
       } catch (error) {
         console.error(`Error processing Withdrawal log: ${error}`);
+      }
+    }
+
+    // Wrapped tokens adds to the sender's balance during deposits but it's not logged
+    // So we need to manually add the revenue to the sender's balance
+    if (log.name === "Deposit") {
+      try {
+        const to =
+          typeof log.inputs[0].value === "string"
+            ? log.inputs[0].value.toLowerCase()
+            : log.inputs[0].value.toString().toLowerCase();
+        const amount = BigInt(log.inputs[1].value);
+
+        console.log(`Deposit: ${to}, amount: ${amount.toString()}`);
+        // Treat it like a WETH transfer in
+        processTransfer(token, NULL_ADDRESS, to, amount);
+      } catch (error) {
+        console.error(`Error processing Deposit log: ${error}`);
       }
     }
   } catch (error) {
@@ -444,6 +466,41 @@ function parseLogsFromReceipt(receipt: TransactionReceipt): TransferLog[] {
             parsedLogs.push(withdrawalLog);
           } catch (error) {
             console.error(`  Failed to parse Withdrawal event: ${error}`);
+          }
+        }
+
+        // Handle Deposit events (WETH)
+        if (log.topics[0] === DEPOSIT_EVENT_TOPIC) {
+          try {
+            const depositLog: TransferLog = {
+              raw: {
+                address: log.address.toLowerCase(),
+                topics: log.topics,
+                data: log.data,
+              },
+              name: "Deposit",
+              anonymous: false,
+              inputs: [
+                {
+                  name: "dst",
+                  value: padAddress(log.topics[1]),
+                  type: "address",
+                  indexed: true,
+                },
+                {
+                  name: "wad",
+                  value: parseAmountSafely(log.data),
+                  type: "uint256",
+                  indexed: false,
+                },
+              ],
+            };
+            console.log(
+              `  Parsed Deposit: to ${depositLog.inputs[0].value}, amount: ${depositLog.inputs[1].value}`
+            );
+            parsedLogs.push(depositLog);
+          } catch (error) {
+            console.error(`  Failed to parse Deposit event: ${error}`);
           }
         }
       } catch (error) {
