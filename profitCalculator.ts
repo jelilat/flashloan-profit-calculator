@@ -4,6 +4,7 @@ import {
   costBalanceChanges,
   addressParticipation,
   getTokenMetadata,
+  NULL_ADDRESS,
 } from "./transferProcessor";
 
 /**
@@ -29,7 +30,8 @@ export function calculateProfitByToken(): ProfitResult[] {
         // i.e. It is not a swap
         if (
           addressParticipation[address] % 2 === 1 &&
-          !revenueBalanceChanges[address]
+          !revenueBalanceChanges[address] &&
+          address !== NULL_ADDRESS
         ) {
           console.log(
             `Token: ${address} is a profit taker with ${addressParticipation[address]} participations`

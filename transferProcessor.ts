@@ -34,6 +34,7 @@ const TRANSFER_EVENT_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const WITHDRAWAL_EVENT_TOPIC =
   "0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65";
+export const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 /**
  * Update the builder address by fetching block information
@@ -236,7 +237,6 @@ export const getTokenMetadata = async (
  * Reset all state
  */
 export function resetState(): void {
-  // Use for...of loop to iterate over object keys
   for (const key of Object.keys(revenueBalanceChanges)) {
     delete revenueBalanceChanges[key];
   }
