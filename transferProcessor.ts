@@ -22,7 +22,14 @@ const alchemy = new Alchemy(settings);
 // State management
 export const revenueBalanceChanges: TokenBalanceChange = {};
 export const costBalanceChanges: TokenBalanceChange = {};
-export const addressParticipation: { [address: string]: number } = {};
+export interface AddressParticipationData {
+  toCount: number;
+  fromCount: number;
+  participation: number;
+}
+export const addressParticipation: {
+  [address: string]: { [token: string]: AddressParticipationData };
+} = {};
 
 // Configuration variables
 let builderAddress = "";
@@ -90,11 +97,42 @@ export function initializeBalanceChanges(
 /**
  * Track address participation in transfers
  */
-export function trackAddressParticipation(from: string, to: string): void {
-  if (!addressParticipation[from]) addressParticipation[from] = 0;
-  if (!addressParticipation[to]) addressParticipation[to] = 0;
-  addressParticipation[from]++;
-  addressParticipation[to]++;
+export function trackAddressParticipation(
+  from: string,
+  to: string,
+  token: string
+): void {
+  // Initialize address data if not exists
+  if (!addressParticipation[from]) addressParticipation[from] = {};
+  if (!addressParticipation[to]) addressParticipation[to] = {};
+
+  // Initialize token data for addresses if not exists
+  if (!addressParticipation[from][token]) {
+    addressParticipation[from][token] = {
+      toCount: 0,
+      fromCount: 0,
+      participation: 0,
+    };
+  }
+
+  if (!addressParticipation[to][token]) {
+    addressParticipation[to][token] = {
+      toCount: 0,
+      fromCount: 0,
+      participation: 0,
+    };
+  }
+
+  // Update counts
+  if (addressParticipation[from][token].fromCount === 0) {
+    addressParticipation[from][token].participation++;
+  }
+  addressParticipation[from][token].fromCount++;
+
+  if (addressParticipation[to][token].toCount === 0) {
+    addressParticipation[to][token].participation++;
+  }
+  addressParticipation[to][token].toCount++;
 }
 
 /**
@@ -106,7 +144,7 @@ export function processTransfer(
   to: string,
   amount: bigint
 ): void {
-  trackAddressParticipation(from, to);
+  trackAddressParticipation(from, to, token);
 
   // Initialize balance changes
   const isFromSenderOrContract =
