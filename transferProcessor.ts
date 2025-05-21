@@ -1,5 +1,7 @@
-import type { TransferLog, TraceCall } from "./assetChanges";
-import { type TokenBalanceChange, ETH_ADDRESS } from "./tokenTypes";
+import type { TransferLog, TraceCall } from "./types";
+import type { TokenBalanceChange } from "./types";
+import { isWethLikeToken } from "./utils";
+import { NULL_ADDRESS, ETH_ADDRESS } from "./constants";
 import {
   Network,
   Alchemy,
@@ -43,7 +45,6 @@ const WITHDRAWAL_EVENT_TOPIC =
   "0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65";
 const DEPOSIT_EVENT_TOPIC =
   "0xe1fffcc4923d04b559f4d29a8bfc6cda04eb5b0d3c460751c2402c5c5cc9109c";
-export const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 /**
  * Update the builder address by fetching block information
@@ -239,7 +240,7 @@ export function processTransferLog(log: TransferLog): void {
 /**
  * Process trace calls recursively to catch ETH transfers
  */
-export const processTraceCall = (calls: TraceCall[]): void => {
+export const processTraceCall = async (calls: TraceCall[]): Promise<void> => {
   try {
     if (!calls || calls.length === 0) {
       console.log("No trace calls to process");
@@ -247,10 +248,10 @@ export const processTraceCall = (calls: TraceCall[]): void => {
     }
 
     let processedCalls = 0;
-    let skippedCalls = 0;
 
     for (const call of calls) {
       try {
+        // Handle ETH transfers
         if (call.type === "CALL" && call.value && call.value !== "0x0") {
           const token = ETH_ADDRESS;
           const from = call.from.toLowerCase();
@@ -262,13 +263,61 @@ export const processTraceCall = (calls: TraceCall[]): void => {
           );
           processTransfer(token, from, to, amount);
           processedCalls++;
-        } else {
-          skippedCalls++;
+        }
+        // Handle ERC20 transfers and WETH-like operations
+        else if (call.type === "CALL" && call.input) {
+          const input = call.input.slice(0, 10); // Get function signature
+          const token = call.to.toLowerCase();
+
+          // Check if this is a WETH-like token
+          const isWethLike = await isWethLikeToken(token);
+
+          // transfer(address,uint256)
+          if (input === "0xa9059cbb") {
+            const [to, amount] = decodeTransferInput(call.input);
+            const from = call.from.toLowerCase();
+
+            console.log(
+              `ERC20 Transfer: ${from} -> ${to}, token: ${token}, amount: ${amount.toString()}`
+            );
+            processTransfer(token, from, to, amount);
+            processedCalls++;
+          }
+          // transferFrom(address,address,uint256)
+          else if (input === "0x23b872dd") {
+            const [from, to, amount] = decodeTransferFromInput(call.input);
+
+            console.log(
+              `ERC20 TransferFrom: ${from} -> ${to}, token: ${token}, amount: ${amount.toString()}`
+            );
+            processTransfer(token, from, to, amount);
+            processedCalls++;
+          }
+          // deposit() - WETH-like
+          else if (input === "0xd0e30db0" && isWethLike) {
+            const amount = BigInt(call.value || "0");
+            const from = call.from.toLowerCase();
+
+            console.log(`WETH Deposit: ${from}, amount: ${amount.toString()}`);
+            // Treat it like a WETH transfer in
+            processTransfer(token, NULL_ADDRESS, from, amount);
+            processedCalls++;
+          }
+          // withdraw(uint256) - WETH-like
+          else if (input === "0x2e1a7d4d" && isWethLike) {
+            const amount = decodeWithdrawInput(call.input);
+            const from = call.from.toLowerCase();
+
+            console.log(`WETH Withdraw: ${from}, amount: ${amount.toString()}`);
+            // Treat it like a WETH transfer out
+            processTransfer(token, from, NULL_ADDRESS, amount);
+            processedCalls++;
+          }
         }
 
         if (call.calls && call.calls.length > 0) {
           // Recursively process nested calls
-          processTraceCall(call.calls);
+          await processTraceCall(call.calls);
         }
       } catch (error) {
         console.error(`Error processing trace call: ${error}`);
@@ -278,6 +327,27 @@ export const processTraceCall = (calls: TraceCall[]): void => {
     console.error(`Failed to process trace calls: ${error}`);
   }
 };
+
+// Helper functions to decode ERC20 function inputs
+function decodeTransferInput(input: string): [string, bigint] {
+  const data = input.slice(10); // Remove function signature
+  const to = `0x${data.slice(24, 64)}`;
+  const amount = BigInt(`0x${data.slice(64, 128)}`);
+  return [to, amount];
+}
+
+function decodeTransferFromInput(input: string): [string, string, bigint] {
+  const data = input.slice(10); // Remove function signature
+  const from = `0x${data.slice(24, 64)}`;
+  const to = `0x${data.slice(88, 128)}`;
+  const amount = BigInt(`0x${data.slice(128, 192)}`);
+  return [from, to, amount];
+}
+
+function decodeWithdrawInput(input: string): bigint {
+  const data = input.slice(10); // Remove function signature
+  return BigInt(`0x${data.slice(24, 64)}`);
+}
 
 /**
  * Setup the processor with contract and sender addresses

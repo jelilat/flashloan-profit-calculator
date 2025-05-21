@@ -1,3 +1,5 @@
+import type { TransferLog, TraceCall } from "./types";
+
 export const assetChanges = {
   assetChanges: [
     {
@@ -164,23 +166,6 @@ export const assetChanges = {
     },
   ],
 };
-
-// Type definitions
-export interface TransferLog {
-  name: string;
-  anonymous: boolean;
-  raw: {
-    address: string;
-    topics: string[];
-    data: string;
-  };
-  inputs: {
-    value: number | string;
-    type: string;
-    name: string;
-    indexed: boolean;
-  }[];
-}
 
 export const logs: TransferLog[] = [
   {
@@ -890,19 +875,6 @@ export const logs: TransferLog[] = [
     },
   },
 ];
-
-export interface TraceCall {
-  from: string;
-  to: string;
-  value?: string;
-  type: string;
-  input: string;
-  output?: string;
-  error?: string;
-  gas: string;
-  gasUsed: string;
-  calls?: TraceCall[];
-}
 
 export const trace: TraceCall[] = [
   {

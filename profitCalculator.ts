@@ -1,11 +1,11 @@
-import type { ProfitResult } from "./tokenTypes";
+import type { ProfitResult } from "./types";
 import {
   revenueBalanceChanges,
   costBalanceChanges,
   addressParticipation,
   getTokenMetadata,
-  NULL_ADDRESS,
 } from "./transferProcessor";
+import { NULL_ADDRESS } from "./constants";
 
 /**
  * Calculates the total profit for each token
