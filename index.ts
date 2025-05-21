@@ -1,6 +1,6 @@
 import { logs } from "./assetChanges";
-import type { TraceCall, TransferLog } from "./assetChanges";
-import { WETH_LIKE_TOKENS } from "./tokenTypes";
+import type { TraceCall, TransferLog } from "./types";
+import { WETH_LIKE_TOKENS } from "./constants";
 import {
   processTransferLog,
   processTraceCall,
@@ -82,43 +82,57 @@ export async function calculateProfit(
   sender: string
 ): Promise<{ token: string; profit: bigint }[]> {
   try {
+    console.log(
+      `Starting profit calculation: Block ${blockNumber}, Contract ${contract}, Sender ${sender}`
+    );
+    console.log(
+      `Processing ${logs.length} logs and ${trace.length} trace calls`
+    );
+
     // Reset state for clean calculation
     resetState();
+    console.log("State reset complete");
 
     // Setup the processor
     try {
       await updateBuilderAddress(blockNumber);
+      console.log(`Builder address updated: ${blockNumber}`);
     } catch (error) {
       console.error(`Failed to update builder address: ${error}`);
       // Continue with processing even if this fails
     }
 
     setupProcessor(contract, sender);
-
-    // Process transfer logs and trace data
-    const filteredLogs = logs.filter(
-      (log) =>
-        log.name === "Transfer" ||
-        (log.name === "Withdrawal" && WETH_LIKE_TOKENS.has(log.raw.address)) ||
-        (log.name === "Deposit" && WETH_LIKE_TOKENS.has(log.raw.address))
+    console.log(
+      `Processor setup complete: Contract ${contract}, Sender ${sender}`
     );
 
-    try {
-      for (const log of filteredLogs) {
-        try {
-          processTransferLog(log);
-        } catch (error) {
-          console.error(`Error processing log: ${error}`);
-          // Continue with next log
-        }
-      }
-    } catch (error) {
-      console.error(`Failed to process logs: ${error}`);
-      // Continue with trace processing
-    }
+    // Process transfer logs and trace data
+    // const filteredLogs = logs.filter(
+    //   (log) =>
+    //     log.name === "Transfer" ||
+    //     (log.name === "Withdrawal" && WETH_LIKE_TOKENS.has(log.raw.address)) ||
+    //     (log.name === "Deposit" && WETH_LIKE_TOKENS.has(log.raw.address))
+    // );
+
+    // try {
+    //   for (const log of filteredLogs) {
+    //     try {
+    //       processTransferLog(log);
+    //     } catch (error) {
+    //       console.error(`Error processing log: ${error}`);
+    //       // Continue with next log
+    //     }
+    //   }
+    // } catch (error) {
+    //   console.error(`Failed to process logs: ${error}`);
+    //   // Continue with trace processing
+    // }
 
     try {
-      processTraceCall(trace);
+      console.log(`Processing ${trace.length} trace calls`);
+      await processTraceCall(trace);
+      console.log("Trace processing complete");
     } catch (error) {
       console.error(`Failed to process trace calls: ${error}`);
       // Continue with profit calculation
@@ -126,7 +140,9 @@ export async function calculateProfit(
 
     // Calculate profit
     try {
+      console.log("Calculating profit...");
       const profit = calculateProfitByToken();
+      console.log(`Profit calculation complete. Found ${profit.length} tokens`);
       return profit;
     } catch (error) {
       console.error(`Failed to calculate profit: ${error}`);
