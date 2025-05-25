@@ -17,7 +17,7 @@ dotenv.config();
 // Initialize Alchemy
 const settings = {
   apiKey: process.env.ALCHEMY_API_KEY,
-  network: Network.ETH_MAINNET,
+  network: Network.ETH_MAINNET, // TODO: Make this configurable
 };
 const alchemy = new Alchemy(settings);
 

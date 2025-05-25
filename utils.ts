@@ -11,6 +11,37 @@ const settings = {
 };
 const alchemy = new Alchemy(settings);
 
+// EIP-1967 implementation slot
+const IMPLEMENTATION_SLOT =
+  "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc";
+
+/**
+ * Get the implementation address of a proxy contract
+ */
+async function getImplementationAddress(
+  proxyAddress: string
+): Promise<string | null> {
+  try {
+    const implementation = await alchemy.core.getStorageAt(
+      proxyAddress,
+      IMPLEMENTATION_SLOT
+    );
+    if (
+      implementation &&
+      implementation !==
+        "0x0000000000000000000000000000000000000000000000000000000000000000"
+    ) {
+      return `0x${implementation.slice(-40)}`; // Convert to address format
+    }
+    return null;
+  } catch (error) {
+    console.error(
+      `Error getting implementation address for ${proxyAddress}: ${error}`
+    );
+    return null;
+  }
+}
+
 /**
  * Check if a token is WETH-like by examining its contract code
  */
@@ -27,7 +58,7 @@ export async function isWethLikeToken(tokenAddress: string): Promise<boolean> {
       return false;
     }
 
-    // Check for WETH-like function signatures
+    // First check the contract directly
     const hasWethFunctions = WETH_FUNCTION_SIGNATURES.some((sig) =>
       code.includes(sig)
     );
@@ -36,6 +67,31 @@ export async function isWethLikeToken(tokenAddress: string): Promise<boolean> {
       // Add to known WETH-like tokens
       WETH_LIKE_TOKENS.add(tokenAddress);
       return true;
+    }
+
+    // If not found in direct code, check if this is a proxy contract
+    const implementationAddress = await getImplementationAddress(tokenAddress);
+    if (implementationAddress) {
+      // Check the implementation contract
+      const implementationCode = await alchemy.core.getCode(
+        implementationAddress
+      );
+      if (!implementationCode || implementationCode === "0x") {
+        return false;
+      }
+      console.log("implementationCode ", implementationAddress);
+
+      // Check for WETH-like function signatures in implementation
+      const hasWethFunctionsInImpl = WETH_FUNCTION_SIGNATURES.some((sig) =>
+        implementationCode.includes(sig)
+      );
+
+      if (hasWethFunctionsInImpl) {
+        // Add to known WETH-like tokens
+        WETH_LIKE_TOKENS.add(tokenAddress);
+        console.log("hasWethFunctionsInImpl ", hasWethFunctionsInImpl);
+        return true;
+      }
     }
 
     return false;
