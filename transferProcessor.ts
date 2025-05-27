@@ -37,6 +37,7 @@ export const addressParticipation: {
 let builderAddress = "";
 let contractAddress = "";
 let senderAddress = "";
+export let blockTimestamp = 0;
 
 // Known event signatures
 const TRANSFER_EVENT_TOPIC =
@@ -54,6 +55,7 @@ export const updateBuilderAddress = async (
 ): Promise<void> => {
   const block = await alchemy.core.getBlock(blockNumber);
   builderAddress = block.miner;
+  blockTimestamp = block.timestamp;
 };
 
 /**

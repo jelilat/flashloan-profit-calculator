@@ -1,5 +1,5 @@
 import { logs } from "./assetChanges";
-import type { TraceCall, TransferLog } from "./types";
+import type { ProfitResult, TraceCall, TransferLog } from "./types";
 import { WETH_LIKE_TOKENS } from "./constants";
 import {
   processTransferLog,
@@ -18,7 +18,9 @@ import {
 /**
  * Calculate profit from a transaction hash
  */
-export async function calculateProfitFromTxHash(txHash: string) {
+export async function calculateProfitFromTxHash(
+  txHash: string
+): Promise<ProfitResult[]> {
   try {
     // Get transaction details
     let transactionDetails: {
@@ -40,7 +42,7 @@ export async function calculateProfitFromTxHash(txHash: string) {
 
     // Calculate profit using the extracted data
     console.log(`Calculating profit for tx ${txHash}...`);
-    let profit: { token: string; profit: bigint }[];
+    let profit: ProfitResult[];
     try {
       profit = await calculateProfit(
         logs,
@@ -80,7 +82,7 @@ export async function calculateProfit(
   blockNumber: number,
   contract: string,
   sender: string
-): Promise<{ token: string; profit: bigint }[]> {
+): Promise<ProfitResult[]> {
   try {
     console.log(
       `Starting profit calculation: Block ${blockNumber}, Contract ${contract}, Sender ${sender}`
@@ -141,7 +143,7 @@ export async function calculateProfit(
     // Calculate profit
     try {
       console.log("Calculating profit...");
-      const profit = calculateProfitByToken();
+      const profit = await calculateProfitByToken();
       console.log(`Profit calculation complete. Found ${profit.length} tokens`);
       return profit;
     } catch (error) {
@@ -159,10 +161,11 @@ export async function calculateProfit(
  * Format and display profit results
  */
 export async function displayProfitResults(
-  profitResults: { token: string; profit: bigint }[]
+  profitResults: ProfitResult[]
 ): Promise<void> {
   console.log("Profit Summary:");
 
+  let totalProfit = 0;
   for (const result of profitResults) {
     try {
       // Try to get token metadata for better display
@@ -172,19 +175,26 @@ export async function displayProfitResults(
 
       // Calculate human-readable profit
       const profit = Number(result.profit) / 10 ** decimals;
-
+      const usd = result.usd * profit;
+      totalProfit += usd;
       console.log(
         `Token: ${result.token} (${symbol}), Profit: ${profit.toFixed(
           decimals
-        )} ${symbol}`
+        )} ${symbol}, USD: $${usd.toFixed(2)}`
       );
     } catch (error) {
       // If metadata can't be retrieved, display raw data
+      const usd = (result.usd * Number(result.profit)) / 1e18;
+      totalProfit += usd;
+
       console.log(
-        `Token: ${result.token}, Profit: ${Number(result.profit) / 1e18} (raw)`
+        `Token: ${result.token}, Profit: ${
+          Number(result.profit) / 1e18
+        } (raw), USD: $${usd.toFixed(2)}`
       );
     }
   }
+  console.log(`Total Profit: $${totalProfit.toFixed(2)}`);
 }
 
 // Example usage

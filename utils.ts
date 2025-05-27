@@ -4,6 +4,8 @@ import type { TraceCall } from "./types";
 import { WETH_LIKE_TOKENS, WETH_FUNCTION_SIGNATURES } from "./constants";
 dotenv.config();
 
+export const COINGECKO_API_KEY = process.env.COINGECKO_API_KEY;
+
 // Initialize Alchemy
 const settings = {
   apiKey: process.env.ALCHEMY_API_KEY,

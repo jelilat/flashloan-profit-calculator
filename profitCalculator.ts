@@ -5,12 +5,14 @@ import {
   addressParticipation,
   getTokenMetadata,
 } from "./transferProcessor";
-import { NULL_ADDRESS } from "./constants";
+import { NULL_ADDRESS, ETH_ADDRESS } from "./constants";
+import { blockTimestamp } from "./transferProcessor";
+import { COINGECKO_API_KEY } from "./utils";
 
 /**
  * Calculates the total profit for each token
  */
-export function calculateProfitByToken(): ProfitResult[] {
+export async function calculateProfitByToken(): Promise<ProfitResult[]> {
   const totalProfit: ProfitResult[] = [];
 
   for (const token in revenueBalanceChanges) {
@@ -63,7 +65,12 @@ export function calculateProfitByToken(): ProfitResult[] {
     );
 
     const profit = revenue + cost;
-    totalProfit.push({ token, profit });
+    const price = await getTokenUsdPriceAtTimestamp(
+      "ethereum", // TODO: Make this configurable
+      token,
+      blockTimestamp
+    );
+    totalProfit.push({ token, profit, usd: price ?? 0 });
   }
 
   return totalProfit;
@@ -88,4 +95,26 @@ export async function formatProfitsWithDecimals(
       };
     })
   );
+}
+
+export async function getTokenUsdPriceAtTimestamp(
+  coingeckoId: string,
+  contract: string,
+  timestamp: number
+): Promise<number | null> {
+  const from = timestamp;
+  const to = timestamp + 3600; // +1 hour
+  const url =
+    contract === ETH_ADDRESS
+      ? `https://api.coingecko.com/api/v3/coins/ethereum/market_chart/range?vs_currency=usd&from=${from}&to=${to}&precision=2`
+      : `https://api.coingecko.com/api/v3/coins/${coingeckoId}/contract/${contract}/market_chart/range?vs_currency=usd&from=${from}&to=${to}&precision=2`;
+  const resp = await fetch(url, {
+    headers: {
+      "x-cg-demo-api-key": COINGECKO_API_KEY ?? "",
+    },
+  });
+  const data = await resp.json();
+  if (!data.prices || data.prices.length === 0) return null;
+  // Use the first price in the range
+  return data.prices[0][1];
 }

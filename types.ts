@@ -11,6 +11,7 @@ export interface TokenBalanceChange {
 export interface ProfitResult {
   token: string;
   profit: bigint;
+  usd: number;
 }
 
 export interface TransferLog {
