@@ -28,21 +28,24 @@ export function calculateProfitByToken(): ProfitResult[] {
 
         // get totalAddressParticipation
         let totalParticipation = 0;
+        let totalToCount = 0;
+        let totalFromCount = 0;
         for (const token in addressParticipation[address]) {
           totalParticipation +=
             addressParticipation[address][token].participation;
+          totalToCount += addressParticipation[address][token].toCount;
+          totalFromCount += addressParticipation[address][token].fromCount;
         }
 
         // The address is a profit taker if it receives a token transfer without sending any tokens
         // i.e. It is not a swap
         if (
           totalParticipation % 2 === 1 &&
+          totalToCount !== totalFromCount &&
           !revenueBalanceChanges[address] &&
           address !== NULL_ADDRESS
         ) {
-          console.log(
-            `Token: ${address} is a profit taker with ${addressParticipation[address][token].participation} participations`
-          );
+          console.log(`${address} is a profit taker`);
           index++;
           return sum + balance.amount;
         }
