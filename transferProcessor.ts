@@ -265,55 +265,55 @@ export const processTraceCall = async (calls: TraceCall[]): Promise<void> => {
           processedCalls++;
         }
         // Handle ERC20 transfers and WETH-like operations
-        else if (call.type === "CALL" && call.input) {
-          const input = call.input.slice(0, 10); // Get function signature
-          const token = call.to.toLowerCase();
+        // else if (call.type === "CALL" && call.input) {
+        //   const input = call.input.slice(0, 10); // Get function signature
+        //   const token = call.to.toLowerCase();
 
-          // Check if this is a WETH-like token
-          const isWethLike = await isWethLikeToken(token);
+        //   // Check if this is a WETH-like token
+        //   const isWethLike = await isWethLikeToken(token);
 
-          // transfer(address,uint256)
-          if (input === "0xa9059cbb") {
-            const [to, amount] = decodeTransferInput(call.input);
-            const from = call.from.toLowerCase();
+        //   // transfer(address,uint256)
+        //   if (input === "0xa9059cbb") {
+        //     const [to, amount] = decodeTransferInput(call.input);
+        //     const from = call.from.toLowerCase();
 
-            console.log(
-              `ERC20 Transfer: ${from} -> ${to}, token: ${token}, amount: ${amount.toString()}`
-            );
-            processTransfer(token, from, to, amount);
-            processedCalls++;
-          }
-          // transferFrom(address,address,uint256)
-          else if (input === "0x23b872dd") {
-            const [from, to, amount] = decodeTransferFromInput(call.input);
+        //     console.log(
+        //       `ERC20 Transfer: ${from} -> ${to}, token: ${token}, amount: ${amount.toString()}`
+        //     );
+        //     processTransfer(token, from, to, amount);
+        //     processedCalls++;
+        //   }
+        //   // transferFrom(address,address,uint256)
+        //   else if (input === "0x23b872dd") {
+        //     const [from, to, amount] = decodeTransferFromInput(call.input);
 
-            console.log(
-              `ERC20 TransferFrom: ${from} -> ${to}, token: ${token}, amount: ${amount.toString()}`
-            );
-            processTransfer(token, from, to, amount);
-            processedCalls++;
-          }
-          // deposit() - WETH-like
-          else if (input === "0xd0e30db0" && isWethLike) {
-            const amount = BigInt(call.value || "0");
-            const from = call.from.toLowerCase();
+        //     console.log(
+        //       `ERC20 TransferFrom: ${from} -> ${to}, token: ${token}, amount: ${amount.toString()}`
+        //     );
+        //     processTransfer(token, from, to, amount);
+        //     processedCalls++;
+        //   }
+        //   // deposit() - WETH-like
+        //   else if (input === "0xd0e30db0" && isWethLike) {
+        //     const amount = BigInt(call.value || "0");
+        //     const from = call.from.toLowerCase();
 
-            console.log(`WETH Deposit: ${from}, amount: ${amount.toString()}`);
-            // Treat it like a WETH transfer in
-            processTransfer(token, NULL_ADDRESS, from, amount);
-            processedCalls++;
-          }
-          // withdraw(uint256) - WETH-like
-          else if (input === "0x2e1a7d4d" && isWethLike) {
-            const amount = decodeWithdrawInput(call.input);
-            const from = call.from.toLowerCase();
+        //     console.log(`WETH Deposit: ${from}, amount: ${amount.toString()}`);
+        //     // Treat it like a WETH transfer in
+        //     processTransfer(token, NULL_ADDRESS, from, amount);
+        //     processedCalls++;
+        //   }
+        //   // withdraw(uint256) - WETH-like
+        //   else if (input === "0x2e1a7d4d" && isWethLike) {
+        //     const amount = decodeWithdrawInput(call.input);
+        //     const from = call.from.toLowerCase();
 
-            console.log(`WETH Withdraw: ${from}, amount: ${amount.toString()}`);
-            // Treat it like a WETH transfer out
-            processTransfer(token, from, NULL_ADDRESS, amount);
-            processedCalls++;
-          }
-        }
+        //     console.log(`WETH Withdraw: ${from}, amount: ${amount.toString()}`);
+        //     // Treat it like a WETH transfer out
+        //     processTransfer(token, from, NULL_ADDRESS, amount);
+        //     processedCalls++;
+        //   }
+        // }
 
         if (call.calls && call.calls.length > 0) {
           // Recursively process nested calls

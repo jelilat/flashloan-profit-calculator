@@ -108,26 +108,26 @@ export async function calculateProfit(
     );
 
     // Process transfer logs and trace data
-    // const filteredLogs = logs.filter(
-    //   (log) =>
-    //     log.name === "Transfer" ||
-    //     (log.name === "Withdrawal" && WETH_LIKE_TOKENS.has(log.raw.address)) ||
-    //     (log.name === "Deposit" && WETH_LIKE_TOKENS.has(log.raw.address))
-    // );
+    const filteredLogs = logs.filter(
+      (log) =>
+        log.name === "Transfer" ||
+        (log.name === "Withdrawal" && WETH_LIKE_TOKENS.has(log.raw.address)) ||
+        (log.name === "Deposit" && WETH_LIKE_TOKENS.has(log.raw.address))
+    );
 
-    // try {
-    //   for (const log of filteredLogs) {
-    //     try {
-    //       processTransferLog(log);
-    //     } catch (error) {
-    //       console.error(`Error processing log: ${error}`);
-    //       // Continue with next log
-    //     }
-    //   }
-    // } catch (error) {
-    //   console.error(`Failed to process logs: ${error}`);
-    //   // Continue with trace processing
-    // }
+    try {
+      for (const log of filteredLogs) {
+        try {
+          processTransferLog(log);
+        } catch (error) {
+          console.error(`Error processing log: ${error}`);
+          // Continue with next log
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to process logs: ${error}`);
+      // Continue with trace processing
+    }
 
     try {
       console.log(`Processing ${trace.length} trace calls`);
