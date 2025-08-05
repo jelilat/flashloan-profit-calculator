@@ -10,8 +10,9 @@
   "scripts": {
     "build": "tsc",
     "prepare": "npm run build",
-    "start": "node dist/server.js",
-    "dev": "ts-node server.ts"
+    "start": "node dist/api/server.js",
+    "dev": "ts-node api/server.ts",
+    "test": "node test-api.js"
   },
   "keywords": [
     "ethereum",

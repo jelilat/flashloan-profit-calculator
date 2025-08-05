@@ -9,6 +9,16 @@ import { NULL_ADDRESS, ETH_ADDRESS } from "./constants";
 import { blockTimestamp } from "./transferProcessor";
 import { COINGECKO_API_KEY } from "./utils";
 
+// Global variable to store detected profit takers
+export const detectedProfitTakers = new Set<string>();
+
+/**
+ * Reset detected profit takers (call this when starting new analysis)
+ */
+export function resetProfitTakers(): void {
+  detectedProfitTakers.clear();
+}
+
 /**
  * Calculates the total profit for each token
  */
@@ -48,6 +58,7 @@ export async function calculateProfitByToken(): Promise<ProfitResult[]> {
           address !== NULL_ADDRESS
         ) {
           console.log(`${address} is a profit taker`);
+          detectedProfitTakers.add(address.toLowerCase());
           index++;
           return sum + balance.amount;
         }

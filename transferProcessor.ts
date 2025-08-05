@@ -362,6 +362,14 @@ export function setupProcessor(contract: string, sender: string): void {
 export const getTokenMetadata = async (
   contract: string
 ): Promise<TokenMetadataResponse> => {
+  if (contract === ETH_ADDRESS) {
+    return {
+      name: "Ether",
+      symbol: "ETH",
+      decimals: 18,
+      logo: "https://cryptologos.cc/logos/ethereum-eth-logo.svg",
+    };
+  }
   return await alchemy.core.getTokenMetadata(contract);
 };
 
@@ -392,11 +400,7 @@ export function resetState(): void {
 export async function getTransactionDetails(txHash: string) {
   try {
     // Get transaction details
-    let transaction: {
-      from: string;
-      to?: string;
-      hash: string;
-    } | null = null;
+    let transaction: any = null;
 
     try {
       transaction = await alchemy.core.getTransaction(txHash);
@@ -472,12 +476,30 @@ export async function getTransactionDetails(txHash: string) {
       throw error;
     }
 
+    // Calculate gas cost in ETH
+    const gasUsed = BigInt(receipt.gasUsed.toString());
+    const effectiveGasPrice = BigInt(
+      receipt.effectiveGasPrice?.toString() ||
+        transaction.gasPrice?.toString() ||
+        "0"
+    );
+    const gasCostWei = gasUsed * effectiveGasPrice;
+    const gasCostETH = Number(gasCostWei) / 1e18;
+
+    console.log(
+      `Gas used: ${gasUsed.toString()}, Effective gas price: ${effectiveGasPrice.toString()}, Gas cost: ${gasCostETH.toFixed(
+        6
+      )} ETH`
+    );
+
     return {
       blockNumber,
       senderAddress,
       contractAddress,
       trace: traceCalls,
       logs: parsedLogs,
+      gasCostETH,
+      gasCostWei: gasCostWei.toString(),
     };
   } catch (error) {
     console.error(`Failed to get transaction details: ${error}`);

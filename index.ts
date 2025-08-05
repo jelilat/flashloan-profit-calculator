@@ -13,7 +13,14 @@ import {
 import {
   calculateProfitByToken,
   formatProfitsWithDecimals,
+  resetProfitTakers,
 } from "./profitCalculator";
+
+export let globalBlockNumber: number;
+export let globalGasCostETH: number;
+export let globalGasCostWei: string;
+export let globalSenderAddress: string;
+export let globalContractAddress: string;
 
 /**
  * Calculate profit from a transaction hash
@@ -29,6 +36,8 @@ export async function calculateProfitFromTxHash(
       contractAddress: string;
       trace: unknown;
       logs: TransferLog[];
+      gasCostETH: number;
+      gasCostWei: string;
     };
     try {
       transactionDetails = await getTransactionDetails(txHash);
@@ -37,8 +46,20 @@ export async function calculateProfitFromTxHash(
       throw error;
     }
 
-    const { blockNumber, senderAddress, contractAddress, trace, logs } =
-      transactionDetails;
+    const {
+      blockNumber,
+      senderAddress,
+      contractAddress,
+      trace,
+      logs,
+      gasCostETH,
+      gasCostWei,
+    } = transactionDetails;
+    globalBlockNumber = transactionDetails.blockNumber;
+    globalGasCostETH = gasCostETH;
+    globalGasCostWei = gasCostWei;
+    globalSenderAddress = senderAddress;
+    globalContractAddress = contractAddress;
 
     // Calculate profit using the extracted data
     console.log(`Calculating profit for tx ${txHash}...`);
@@ -93,6 +114,7 @@ export async function calculateProfit(
 
     // Reset state for clean calculation
     resetState();
+    resetProfitTakers();
     console.log("State reset complete");
 
     // Setup the processor
