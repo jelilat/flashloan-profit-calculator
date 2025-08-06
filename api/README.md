@@ -17,10 +17,13 @@ A comprehensive API for analyzing flashloan transactions and extracting detailed
 npm install
 
 # Set up environment variables
-# Create .env file in the project root with:
-ALCHEMY_API_KEY=your_alchemy_api_key
-COINGECKO_API_KEY=your_coingecko_api_key
-PORT=3000
+cp env.template .env
+# Edit .env file and add your API keys:
+# ALCHEMY_API_KEY=your_alchemy_api_key
+# COINGECKO_API_KEY=your_coingecko_api_key  
+# TENDERLY_NODE_ACCESS_KEY=your_tenderly_key
+# ETHERSCAN_API_KEY=your_etherscan_api_key
+# PORT=3000
 
 # Build the project
 npm run build
@@ -53,6 +56,8 @@ Analyzes a transaction hash and returns comprehensive token flow data.
   "to": "0xabcdef1234567890abcdef1234567890abcdef12",
   "blockNumber": 18450123,
   "blockTimestamp": 1698765432,
+  "isFlashLoan": true,
+  "flashloanContracts": ["Aave: Pool V3", "Balancer: Vault"],
   "totalRevenueUSD": 1275.50,
   "totalCostUSD": 24.75,
   "totalProfitUSD": 1250.75,
@@ -85,6 +90,7 @@ Analyzes a transaction hash and returns comprehensive token flow data.
     {
       "token": "0xa0b86991c31cc0c5c3f526cc2702308c09e4d0c4e",
       "symbol": "USDT",
+      "logo": "https://cryptologos.cc/logos/tether-usdt-logo.svg",
       "decimals": 6,
       "profit": 408.105090,
       "profitFormatted": "408.105090 USDT",
@@ -109,6 +115,7 @@ Returns a list of all tokens that have been processed.
   {
     "address": "0xa0b86991c31cc0c5c3f526cc2702308c09e4d0c4e",
     "symbol": "USDT",
+    "logo": "https://cryptologos.cc/logos/tether-usdt-logo.svg",
     "decimals": 6,
     "name": "Tether USD"
   }
@@ -172,6 +179,7 @@ The API generates data that can be used to create token flow charts similar to t
 ```
 🔍 Token Flow Chart for Transaction: 0x0c3..c59d1
 📊 Block: 18450123 | Timestamp: 2023-10-31T12:00:00.000Z
+⚡ Flashloan: YES (Aave: Pool V3, Balancer: Vault)
 💰 Revenue: $1,275.50 | 💸 Gas Cost: $24.75 | 📈 Net Profit: $1,250.75
 
 ================================================================================
@@ -276,6 +284,7 @@ const cy = cytoscape({
 - `amount`: Raw token amount (as string to handle big numbers)
 - `decimals`: Token decimal places
 - `symbol`: Token symbol
+- `logo`: Token logo URL (optional)
 - `type`: Type of change (Revenue, Cost, TokenTransfer)
 - `usdValue`: USD equivalent value
 
@@ -285,6 +294,8 @@ const cy = cytoscape({
 # Required
 ALCHEMY_API_KEY=your_alchemy_api_key_here
 COINGECKO_API_KEY=your_coingecko_api_key_here
+TENDERLY_NODE_ACCESS_KEY=your_tenderly_node_access_key_here
+ETHERSCAN_API_KEY=your_etherscan_api_key_here
 
 # Optional
 PORT=3000

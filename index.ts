@@ -1,4 +1,3 @@
-import { logs } from "./assetChanges";
 import type { ProfitResult, TraceCall, TransferLog } from "./types";
 import { WETH_LIKE_TOKENS } from "./constants";
 import {
@@ -9,6 +8,7 @@ import {
   resetState,
   getTransactionDetails,
   getTokenMetadata,
+  detectedFlashloanContracts,
 } from "./transferProcessor";
 import {
   calculateProfitByToken,
@@ -21,6 +21,7 @@ export let globalGasCostETH: number;
 export let globalGasCostWei: string;
 export let globalSenderAddress: string;
 export let globalContractAddress: string;
+export let flashloanContracts: string[] = [];
 
 /**
  * Calculate profit from a transaction hash
@@ -34,7 +35,7 @@ export async function calculateProfitFromTxHash(
       blockNumber: number;
       senderAddress: string;
       contractAddress: string;
-      trace: unknown;
+      // trace: unknown;
       logs: TransferLog[];
       gasCostETH: number;
       gasCostWei: string;
@@ -50,7 +51,7 @@ export async function calculateProfitFromTxHash(
       blockNumber,
       senderAddress,
       contractAddress,
-      trace,
+      // trace,
       logs,
       gasCostETH,
       gasCostWei,
@@ -67,7 +68,7 @@ export async function calculateProfitFromTxHash(
     try {
       profit = await calculateProfit(
         logs,
-        trace as TraceCall[],
+        // trace as TraceCall[],
         blockNumber,
         contractAddress,
         senderAddress
@@ -99,7 +100,7 @@ export async function calculateProfitFromTxHash(
  */
 export async function calculateProfit(
   logs: TransferLog[],
-  trace: TraceCall[],
+  // trace: TraceCall[],
   blockNumber: number,
   contract: string,
   sender: string
@@ -107,9 +108,6 @@ export async function calculateProfit(
   try {
     console.log(
       `Starting profit calculation: Block ${blockNumber}, Contract ${contract}, Sender ${sender}`
-    );
-    console.log(
-      `Processing ${logs.length} logs and ${trace.length} trace calls`
     );
 
     // Reset state for clean calculation
@@ -141,6 +139,7 @@ export async function calculateProfit(
 
     try {
       for (const log of filteredLogs) {
+        console.log(`Processing log: ${log.name}`);
         try {
           processTransferLog(log);
         } catch (error) {
@@ -154,8 +153,8 @@ export async function calculateProfit(
     }
 
     try {
-      console.log(`Processing ${trace.length} trace calls`);
-      await processTraceCall(trace);
+      // console.log(`Processing ${trace.length} trace calls`);
+      // await processTraceCall(trace);
       console.log("Trace processing complete");
     } catch (error) {
       console.error(`Failed to process trace calls: ${error}`);

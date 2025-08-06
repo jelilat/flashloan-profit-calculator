@@ -8,6 +8,7 @@ import {
   globalGasCostWei,
   globalSenderAddress,
   globalContractAddress,
+  flashloanContracts,
 } from "../index";
 import {
   revenueBalanceChanges,
@@ -21,6 +22,7 @@ import {
   getTokenUsdPriceAtTimestamp,
   detectedProfitTakers,
 } from "../profitCalculator";
+import { isFlashLoan } from "../transferProcessor";
 
 dotenv.config();
 
@@ -38,11 +40,13 @@ app.use(express.json());
 interface TokenFlowData {
   address: string;
   symbol?: string;
+  logo?: string;
   balanceChanges: {
     [token: string]: {
       amount: string;
       decimals: number;
       symbol: string;
+      logo?: string;
       type: "Revenue" | "Cost" | "TokenTransfer";
       usdValue?: number;
     };
@@ -64,6 +68,8 @@ interface TransactionAnalysis {
   to: string;
   blockNumber: number;
   blockTimestamp: number;
+  isFlashLoan: boolean;
+  flashloanContracts: string[];
   totalRevenueUSD: number;
   totalCostUSD: number;
   totalProfitUSD: number;
@@ -73,6 +79,7 @@ interface TransactionAnalysis {
   profitSummary: Array<{
     token: string;
     symbol: string;
+    logo?: string;
     decimals: number;
     profit: number;
     profitFormatted: string;
@@ -255,6 +262,7 @@ async function performTransactionAnalysis(
         balanceChanges[token].decimals = metadata.decimals || 18;
         balanceChanges[token].symbol =
           metadata.symbol || `${token.substring(0, 8)}...`;
+        balanceChanges[token].logo = metadata.logo || undefined;
 
         // Calculate USD value
         const profit = profitResults.find((p) => p.token === token);
@@ -311,23 +319,35 @@ async function performTransactionAnalysis(
     to: globalContractAddress,
     blockNumber: globalBlockNumber,
     blockTimestamp: blockTimestamp,
+    isFlashLoan,
+    flashloanContracts: [...flashloanContracts],
     totalRevenueUSD,
     totalCostUSD: gasCostUSD,
     totalProfitUSD,
     gasCostETH: globalGasCostETH,
     gasCostUSD,
     tokenFlows,
-    profitSummary: formattedProfits.map((profit) => {
-      const result = profitResults.find((p) => p.token === profit.token);
-      return {
-        token: profit.token,
-        symbol: profit.symbol,
-        decimals: profit.decimals,
-        profit: profit.profit,
-        profitFormatted: `${profit.profit.toFixed(6)} ${profit.symbol}`,
-        usdValue: profit.profit * (result?.usd || 0),
-      };
-    }),
+    profitSummary: await Promise.all(
+      formattedProfits.map(async (profit) => {
+        const result = profitResults.find((p) => p.token === profit.token);
+        let logo: string | undefined;
+        try {
+          const metadata = await getTokenMetadata(profit.token);
+          logo = metadata.logo || undefined;
+        } catch (error) {
+          // Logo will remain undefined if metadata fetch fails
+        }
+        return {
+          token: profit.token,
+          symbol: profit.symbol,
+          logo,
+          decimals: profit.decimals,
+          profit: profit.profit,
+          profitFormatted: `${profit.profit.toFixed(6)} ${profit.symbol}`,
+          usdValue: profit.profit * (result?.usd || 0),
+        };
+      })
+    ),
     transferCounts,
   };
 
@@ -350,6 +370,7 @@ app.get("/tokens", async (req, res) => {
     interface TokenListItem {
       address: string;
       symbol: string;
+      logo?: string;
       decimals: number;
       name: string;
     }
@@ -360,6 +381,7 @@ app.get("/tokens", async (req, res) => {
         tokenList.push({
           address: token,
           symbol: metadata.symbol || "Unknown",
+          logo: metadata.logo || undefined,
           decimals: metadata.decimals || 18,
           name: metadata.name || "Unknown",
         });

@@ -8,6 +8,7 @@ export interface TokenFlowData {
       amount: string;
       decimals: number;
       symbol: string;
+      logo?: string;
       type: "Revenue" | "Cost" | "TokenTransfer";
       usdValue?: number;
     };
@@ -32,6 +33,7 @@ export interface TokenFlowData {
 export interface ProfitSummary {
   token: string;
   symbol: string;
+  logo?: string;
   decimals: number;
   profit: number;
   profitFormatted: string;
@@ -50,6 +52,8 @@ export interface TransactionAnalysis {
   to: string;
   blockNumber: number;
   blockTimestamp: number;
+  isFlashLoan: boolean;
+  flashloanContracts: string[];
   totalRevenueUSD: number;
   totalCostUSD: number;
   totalProfitUSD: number;
@@ -63,6 +67,7 @@ export interface TransactionAnalysis {
 export interface TokenInfo {
   address: string;
   symbol: string;
+  logo?: string;
   decimals: number;
   name: string;
 }

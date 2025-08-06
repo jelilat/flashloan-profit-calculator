@@ -1,18 +1,19 @@
 import type { TransferLog, TraceCall } from "./types";
+import fs from "fs";
 import type { TokenBalanceChange } from "./types";
-import { isWethLikeToken } from "./utils";
-import { NULL_ADDRESS, ETH_ADDRESS } from "./constants";
+import { getABIAndDecodeLog } from "./utils";
+import { NULL_ADDRESS, ETH_ADDRESS, FLASHLOAN_CONTRACTS } from "./constants";
 import {
   Network,
   Alchemy,
   type TokenMetadataResponse,
-  DebugTracerType,
   type TransactionReceipt,
-  type DebugCallTrace,
 } from "alchemy-sdk";
 import dotenv from "dotenv";
 
 dotenv.config();
+
+export let isFlashLoan: boolean = false;
 
 // Initialize Alchemy
 const settings = {
@@ -38,6 +39,9 @@ let builderAddress = "";
 let contractAddress = "";
 let senderAddress = "";
 export let blockTimestamp = 0;
+
+// Global flashloan tracking
+export const detectedFlashloanContracts: string[] = [];
 
 // Known event signatures
 const TRANSFER_EVENT_TOPIC =
@@ -389,6 +393,9 @@ export function resetState(): void {
     delete addressParticipation[key];
   }
 
+  // Reset flashloan tracking
+  detectedFlashloanContracts.length = 0;
+
   builderAddress = "";
   contractAddress = "";
   senderAddress = "";
@@ -435,41 +442,42 @@ export async function getTransactionDetails(txHash: string) {
     const contractAddress = transaction.to?.toLowerCase() || "";
 
     // Get trace data - add a default tracer
-    let trace: DebugCallTrace | null = null;
-    try {
-      trace = await alchemy.debug.traceTransaction(txHash, {
-        type: DebugTracerType.CALL_TRACER,
-      });
-      console.log(
-        `Got trace data: ${JSON.stringify(trace).substring(0, 200)}...`
-      );
-    } catch (error) {
-      console.error(`Failed to get trace data: ${error}`);
-      console.error(`Error details: ${JSON.stringify(error)}`);
-      throw error;
-    }
+    // let trace: DebugCallTrace | null = null;
+    // try {
+    //   trace = await alchemy.debug.traceTransaction(txHash, {
+    //     type: DebugTracerType.CALL_TRACER,
+    //   });
+    //   console.log(
+    //     `Got trace data: ${JSON.stringify(trace).substring(0, 200)}...`
+    //   );
+    // } catch (error) {
+    //   console.error(`Failed to get trace data: ${error}`);
+    //   console.error(`Error details: ${JSON.stringify(error)}`);
+    //   throw error;
+    // }
 
-    // Process trace calls safely
-    let traceCalls: unknown[] = [];
-    try {
-      if (Array.isArray(trace)) {
-        traceCalls = trace;
-      } else if (typeof trace === "object" && trace !== null) {
-        const traceObj = trace as unknown as Record<string, unknown>;
-        if (Array.isArray(traceObj.calls)) {
-          traceCalls = traceObj.calls;
-        }
-      }
-      console.log(`Extracted ${traceCalls.length} trace calls`);
-    } catch (error) {
-      console.error(`Failed to extract trace calls: ${error}`);
-      // Continue with empty trace calls
-    }
+    // // Process trace calls safely
+    // let traceCalls: unknown[] = [];
+    // try {
+    //   if (Array.isArray(trace)) {
+    //     traceCalls = trace;
+    //   } else if (typeof trace === "object" && trace !== null) {
+    //     const traceObj = trace as unknown as Record<string, unknown>;
+    //     if (Array.isArray(traceObj.calls)) {
+    //       traceCalls = traceObj.calls;
+    //     }
+    //   }
+    //   console.log(`Extracted ${traceCalls.length} trace calls`);
+    // } catch (error) {
+    //   console.error(`Failed to extract trace calls: ${error}`);
+    //   // Continue with empty trace calls
+    // }
 
     // Parse logs from receipt
     let parsedLogs: TransferLog[];
     try {
-      parsedLogs = parseLogsFromReceipt(receipt);
+      parsedLogs = await parseLogsFromReceipt(receipt);
+
       console.log(`Parsed ${parsedLogs.length} logs from receipt`);
     } catch (error) {
       console.error(`Failed to parse logs: ${error}`);
@@ -496,7 +504,7 @@ export async function getTransactionDetails(txHash: string) {
       blockNumber,
       senderAddress,
       contractAddress,
-      trace: traceCalls,
+      // trace: traceCalls,
       logs: parsedLogs,
       gasCostETH,
       gasCostWei: gasCostWei.toString(),
@@ -511,7 +519,9 @@ export async function getTransactionDetails(txHash: string) {
 /**
  * Parse logs from transaction receipt without relying on external ABIs
  */
-function parseLogsFromReceipt(receipt: TransactionReceipt): TransferLog[] {
+async function parseLogsFromReceipt(
+  receipt: TransactionReceipt
+): Promise<TransferLog[]> {
   try {
     const parsedLogs: TransferLog[] = [];
 
@@ -567,7 +577,7 @@ function parseLogsFromReceipt(receipt: TransactionReceipt): TransferLog[] {
         }
 
         // Handle Withdrawal events (WETH)
-        if (log.topics[0] === WITHDRAWAL_EVENT_TOPIC) {
+        else if (log.topics[0] === WITHDRAWAL_EVENT_TOPIC) {
           try {
             const withdrawalLog: TransferLog = {
               raw: {
@@ -602,7 +612,7 @@ function parseLogsFromReceipt(receipt: TransactionReceipt): TransferLog[] {
         }
 
         // Handle Deposit events (WETH)
-        if (log.topics[0] === DEPOSIT_EVENT_TOPIC) {
+        else if (log.topics[0] === DEPOSIT_EVENT_TOPIC) {
           try {
             const depositLog: TransferLog = {
               raw: {
@@ -633,6 +643,48 @@ function parseLogsFromReceipt(receipt: TransactionReceipt): TransferLog[] {
             parsedLogs.push(depositLog);
           } catch (error) {
             console.error(`  Failed to parse Deposit event: ${error}`);
+          }
+        }
+
+        // Flashloan detection
+        else {
+          try {
+            if (!isFlashLoan) {
+              // Check if it's a known flashloan contract
+              const knownContract = FLASHLOAN_CONTRACTS.find(
+                (contract) =>
+                  contract.address.toLowerCase() === log.address.toLowerCase()
+              );
+
+              if (knownContract) {
+                console.log(`Known flashloan contract: ${knownContract.name}`);
+                isFlashLoan = true;
+                if (!detectedFlashloanContracts.includes(knownContract.name)) {
+                  detectedFlashloanContracts.push(knownContract.name);
+                }
+                return parsedLogs;
+              } else {
+                // Try to decode event to check if it's a flashloan
+                const event = await getABIAndDecodeLog(log.address, {
+                  topics: log.topics,
+                  data: log.data,
+                });
+                console.log(`Event decoded: ${event.name}`);
+
+                if (event.name === "FlashLoan") {
+                  isFlashLoan = true;
+                  console.log(`Flashloan detected via event: ${event.name}`);
+                  if (!detectedFlashloanContracts.includes("Unknown")) {
+                    detectedFlashloanContracts.push("Unknown");
+                  }
+                  return parsedLogs;
+                }
+              }
+            }
+          } catch (error) {
+            console.warn(
+              `Failed to check flashloan for ${log.address}: ${error}`
+            );
           }
         }
       } catch (error) {
