@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { DuneClient } from "@duneanalytics/client-sdk";
 import {
   calculateProfitFromTxHash,
   globalBlockNumber,
@@ -401,6 +402,78 @@ app.get("/tokens", async (req, res) => {
   }
 });
 
+// Dune query endpoint
+app.get("/flashloans", async (req, res) => {
+  try {
+    const { DUNE_API_KEY } = process.env;
+
+    if (!DUNE_API_KEY) {
+      return res.status(500).json({
+        error: "DUNE_API_KEY not configured in environment variables",
+      });
+    }
+
+    const client = new DuneClient(DUNE_API_KEY);
+
+    const queryID = 5597175;
+
+    // Allow query ID to be overridden via query parameter
+    const requestedQueryId = req.query.queryId
+      ? parseInt(req.query.queryId as string)
+      : queryID;
+
+    console.log(`Fetching Dune query ${requestedQueryId}...`);
+
+    const executionResult = await client.getLatestResult({
+      queryId: requestedQueryId,
+      opts: { maxAgeHours: 2 },
+    });
+
+    if (!executionResult.result?.rows) {
+      return res.status(404).json({
+        error: "No data returned from Dune query",
+        queryId: requestedQueryId,
+      });
+    }
+
+    const response = {
+      success: true,
+      queryId: requestedQueryId,
+      rowCount: executionResult.result.rows.length,
+      data: executionResult.result.rows,
+      metadata: {
+        executionId: executionResult.execution_id,
+        state: executionResult.state,
+        fetchedAt: new Date().toISOString(),
+      },
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error("Dune query error:", error);
+
+    // Handle specific error types
+    if (error instanceof Error) {
+      if (error.message.includes("ENOTFOUND")) {
+        return res.status(503).json({
+          error:
+            "Unable to connect to Dune API. Please check your internet connection.",
+          details: "DNS resolution failed for api.dune.com",
+        });
+      }
+
+      return res.status(500).json({
+        error: "Failed to fetch Dune data",
+        details: error.message,
+      });
+    }
+
+    res.status(500).json({
+      error: "Unknown error occurred while fetching Dune data",
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(
     `🚀 Flashloan Profit Calculator API server running on port ${PORT}`
@@ -408,6 +481,7 @@ app.listen(PORT, () => {
   console.log(`📊 Endpoints:`);
   console.log(`  POST /analyze-transaction - Analyze a transaction hash`);
   console.log(`  GET  /tokens - Get supported tokens`);
+  console.log(`  GET  /flashloans?queryId=<id> - Fetch flashloan data`);
   console.log(`  GET  /health - Health check`);
 });
 

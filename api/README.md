@@ -23,6 +23,7 @@ cp env.template .env
 # COINGECKO_API_KEY=your_coingecko_api_key  
 # TENDERLY_NODE_ACCESS_KEY=your_tenderly_key
 # ETHERSCAN_API_KEY=your_etherscan_api_key
+# DUNE_API_KEY=your_dune_api_key
 # PORT=3000
 
 # Build the project
@@ -121,6 +122,43 @@ Returns a list of all tokens that have been processed.
   }
 ]
 ```
+
+### GET `/flashloans`
+
+Fetches data from a Dune Analytics query.
+
+**Query Parameters:**
+- `queryId` (optional): The Dune query ID to fetch. Defaults to 5196999.
+
+**Example:**
+```bash
+curl http://localhost:3000/flashloans?queryId=5196999
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "queryId": 5196999,
+  "rowCount": 100,
+  "data": [
+    {
+      "column1": "value1",
+      "column2": "value2"
+    }
+  ],
+  "metadata": {
+    "executionId": "01234567-89ab-cdef-0123-456789abcdef",
+    "state": "QUERY_STATE_COMPLETED",
+    "fetchedAt": "2024-01-01T12:00:00.000Z"
+  }
+}
+```
+
+**Error Responses:**
+- `500`: DUNE_API_KEY not configured
+- `503`: Unable to connect to Dune API
+- `404`: No data returned from query
 
 ### GET `/health`
 
@@ -296,6 +334,7 @@ ALCHEMY_API_KEY=your_alchemy_api_key_here
 COINGECKO_API_KEY=your_coingecko_api_key_here
 TENDERLY_NODE_ACCESS_KEY=your_tenderly_node_access_key_here
 ETHERSCAN_API_KEY=your_etherscan_api_key_here
+DUNE_API_KEY=your_dune_api_key_here
 
 # Optional
 PORT=3000
