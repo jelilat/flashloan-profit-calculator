@@ -35,7 +35,7 @@ export async function calculateProfitFromTxHash(
       blockNumber: number;
       senderAddress: string;
       contractAddress: string;
-      // trace: unknown;
+      trace: unknown;
       logs: TransferLog[];
       gasCostETH: number;
       gasCostWei: string;
@@ -51,7 +51,7 @@ export async function calculateProfitFromTxHash(
       blockNumber,
       senderAddress,
       contractAddress,
-      // trace,
+      trace,
       logs,
       gasCostETH,
       gasCostWei,
@@ -68,7 +68,7 @@ export async function calculateProfitFromTxHash(
     try {
       profit = await calculateProfit(
         logs,
-        // trace as TraceCall[],
+        trace as TraceCall[],
         blockNumber,
         contractAddress,
         senderAddress
@@ -100,7 +100,7 @@ export async function calculateProfitFromTxHash(
  */
 export async function calculateProfit(
   logs: TransferLog[],
-  // trace: TraceCall[],
+  trace: TraceCall[],
   blockNumber: number,
   contract: string,
   sender: string
@@ -153,8 +153,8 @@ export async function calculateProfit(
     }
 
     try {
-      // console.log(`Processing ${trace.length} trace calls`);
-      // await processTraceCall(trace);
+      console.log(`Processing ${trace.length} trace calls`);
+      await processTraceCall(trace);
       console.log("Trace processing complete");
     } catch (error) {
       console.error(`Failed to process trace calls: ${error}`);

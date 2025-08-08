@@ -8,6 +8,8 @@ import {
   Alchemy,
   type TokenMetadataResponse,
   type TransactionReceipt,
+  type DebugCallTrace,
+  DebugTracerType,
 } from "alchemy-sdk";
 import dotenv from "dotenv";
 
@@ -442,36 +444,36 @@ export async function getTransactionDetails(txHash: string) {
     const contractAddress = transaction.to?.toLowerCase() || "";
 
     // Get trace data - add a default tracer
-    // let trace: DebugCallTrace | null = null;
-    // try {
-    //   trace = await alchemy.debug.traceTransaction(txHash, {
-    //     type: DebugTracerType.CALL_TRACER,
-    //   });
-    //   console.log(
-    //     `Got trace data: ${JSON.stringify(trace).substring(0, 200)}...`
-    //   );
-    // } catch (error) {
-    //   console.error(`Failed to get trace data: ${error}`);
-    //   console.error(`Error details: ${JSON.stringify(error)}`);
-    //   throw error;
-    // }
+    let trace: DebugCallTrace | null = null;
+    try {
+      trace = await alchemy.debug.traceTransaction(txHash, {
+        type: DebugTracerType.CALL_TRACER,
+      });
+      console.log(
+        `Got trace data: ${JSON.stringify(trace).substring(0, 200)}...`
+      );
+    } catch (error) {
+      console.error(`Failed to get trace data: ${error}`);
+      console.error(`Error details: ${JSON.stringify(error)}`);
+      throw error;
+    }
 
     // // Process trace calls safely
-    // let traceCalls: unknown[] = [];
-    // try {
-    //   if (Array.isArray(trace)) {
-    //     traceCalls = trace;
-    //   } else if (typeof trace === "object" && trace !== null) {
-    //     const traceObj = trace as unknown as Record<string, unknown>;
-    //     if (Array.isArray(traceObj.calls)) {
-    //       traceCalls = traceObj.calls;
-    //     }
-    //   }
-    //   console.log(`Extracted ${traceCalls.length} trace calls`);
-    // } catch (error) {
-    //   console.error(`Failed to extract trace calls: ${error}`);
-    //   // Continue with empty trace calls
-    // }
+    let traceCalls: unknown[] = [];
+    try {
+      if (Array.isArray(trace)) {
+        traceCalls = trace;
+      } else if (typeof trace === "object" && trace !== null) {
+        const traceObj = trace as unknown as Record<string, unknown>;
+        if (Array.isArray(traceObj.calls)) {
+          traceCalls = traceObj.calls;
+        }
+      }
+      console.log(`Extracted ${traceCalls.length} trace calls`);
+    } catch (error) {
+      console.error(`Failed to extract trace calls: ${error}`);
+      // Continue with empty trace calls
+    }
 
     // Parse logs from receipt
     let parsedLogs: TransferLog[];
@@ -504,7 +506,7 @@ export async function getTransactionDetails(txHash: string) {
       blockNumber,
       senderAddress,
       contractAddress,
-      // trace: traceCalls,
+      trace: traceCalls,
       logs: parsedLogs,
       gasCostETH,
       gasCostWei: gasCostWei.toString(),
