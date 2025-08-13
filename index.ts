@@ -218,20 +218,3 @@ export async function displayProfitResults(
   console.log(`Total Profit: $${totalProfit.toFixed(2)}`);
 }
 
-// Example usage
-if (require.main === module) {
-  const runExample = async () => {
-    try {
-      // Example using transaction hash
-      const txHash =
-        "0x4eaa9a30fabe363c883a557765f1512747011304db589dcc686156b42b613d5e";
-      const results = await calculateProfitFromTxHash(txHash);
-
-      await displayProfitResults(results);
-    } catch (error) {
-      console.error("Error calculating profit:", error);
-    }
-  };
-
-  runExample().catch(console.error);
-}
