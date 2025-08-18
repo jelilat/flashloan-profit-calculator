@@ -27,9 +27,13 @@ The codebase is organized in a modular way:
    ```bash
    npm install
    ```
-3. Create a `.env` file with:
+3. Create a `.env` file with the required API keys:
    ```
    ALCHEMY_API_KEY=your_alchemy_api_key
+   COINGECKO_API_KEY=your_coingecko_api_key
+   TENDERLY_NODE_ACCESS_KEY=your_tenderly_node_access_key
+   ETHERSCAN_API_KEY=your_etherscan_api_key
+   DUNE_API_KEY=your_dune_api_key
    ```
 
 ## Usage
@@ -46,20 +50,20 @@ Where `0x123...abc` is the transaction hash you want to analyze.
 
 ### Programmatic Usage
 
-Import the library:
+Install the package:
+
+```bash
+npm install flashloan-profit-calculator
+```
+
+Use it in your project:
 
 ```typescript
-import { calculateProfitFromTxHash, displayProfitResults } from './index';
+import { calculateProfitFromTxHash } from 'flashloan-profit-calculator';
 
 async function analyzeTx(txHash: string) {
   try {
-    // Calculate profit
     const profit = await calculateProfitFromTxHash(txHash);
-    
-    // Display results
-    await displayProfitResults(profit);
-    
-    // Or use the raw profit data
     console.log('Raw profit data:', profit);
   } catch (error) {
     console.error('Error:', error);
@@ -83,4 +87,4 @@ analyzeTx('0x123...abc');
 
 - Node.js v14+
 - TypeScript
-- Alchemy API key 
+- API keys for Alchemy, CoinGecko, Tenderly, Etherscan, and Dune
