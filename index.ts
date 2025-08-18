@@ -12,9 +12,16 @@ import {
 } from "./transferProcessor";
 import {
   calculateProfitByToken,
-  formatProfitsWithDecimals,
   resetProfitTakers,
 } from "./profitCalculator";
+
+export * from "./types";
+export * from "./constants";
+export * from "./utils";
+export * from "./transferProcessor";
+export * from "./profitCalculator";
+export * from "./api/types";
+export { default as FlashloanAnalysisClient } from "./api/client";
 
 export let globalBlockNumber: number;
 export let globalGasCostETH: number;
