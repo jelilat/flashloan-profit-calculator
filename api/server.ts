@@ -6,7 +6,7 @@ import {
   calculateProfitFromTxHash,
   globalBlockNumber,
   globalGasCostETH,
-  globalGasCostWei,
+  // globalGasCostWei,
   globalSenderAddress,
   globalContractAddress,
   flashloanContracts,

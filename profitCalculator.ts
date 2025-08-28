@@ -4,6 +4,8 @@ import {
   costBalanceChanges,
   addressParticipation,
   getTokenMetadata,
+  contractAddress,
+  senderAddress,
 } from "./transferProcessor";
 import { NULL_ADDRESS, ETH_ADDRESS } from "./constants";
 import { blockTimestamp } from "./transferProcessor";
@@ -31,12 +33,21 @@ export async function calculateProfitByToken(): Promise<ProfitResult[]> {
     // Calculate revenue
     const revenue = Object.values(revenueBalanceChanges[token]).reduce(
       (sum, balance) => {
+        const address = Object.keys(revenueBalanceChanges[token])[
+          index
+        ].toLowerCase();
+
         if (balance.type === "Revenue" || balance.type === "Cost") {
+          if (
+            balance.type === "Revenue" &&
+            (address === senderAddress.toLowerCase() ||
+              address === contractAddress.toLowerCase())
+          ) {
+            detectedProfitTakers.add(address.toLowerCase());
+          }
           index++;
           return sum + balance.amount;
         }
-
-        const address = Object.keys(revenueBalanceChanges[token])[index];
 
         // get totalAddressParticipation
         let totalParticipation = 0;
@@ -58,7 +69,7 @@ export async function calculateProfitByToken(): Promise<ProfitResult[]> {
           address !== NULL_ADDRESS
         ) {
           console.log(`${address} is a profit taker`);
-          detectedProfitTakers.add(address.toLowerCase());
+          detectedProfitTakers.add(address);
           index++;
           return sum + balance.amount;
         }

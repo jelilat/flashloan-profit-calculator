@@ -38,8 +38,8 @@ export const addressParticipation: {
 
 // Configuration variables
 let builderAddress = "";
-let contractAddress = "";
-let senderAddress = "";
+export let contractAddress = "";
+export let senderAddress = "";
 export let blockTimestamp = 0;
 
 // Global flashloan tracking
@@ -529,17 +529,9 @@ async function parseLogsFromReceipt(
 
     for (const log of receipt.logs) {
       try {
-        // Debug log data
-        console.log(
-          `Processing log: address=${
-            log.address
-          }, topics=${log.topics[0]?.substring(0, 10)}...`
-        );
-
-        // Handle Transfer events (ERC20/ERC721)
+        // Transfer (ERC20/ERC721 style topic)
         if (log.topics[0] === TRANSFER_EVENT_TOPIC) {
           try {
-            // Create a TransferLog object for the Transfer event
             const transferLog: TransferLog = {
               raw: {
                 address: log.address.toLowerCase(),
@@ -569,16 +561,12 @@ async function parseLogsFromReceipt(
                 },
               ],
             };
-            console.log(
-              `  Parsed Transfer: ${transferLog.inputs[0].value} -> ${transferLog.inputs[1].value}, amount: ${transferLog.inputs[2].value}`
-            );
             parsedLogs.push(transferLog);
           } catch (error) {
             console.error(`  Failed to parse Transfer event: ${error}`);
           }
         }
-
-        // Handle Withdrawal events (WETH)
+        // Withdrawal (WETH)
         else if (log.topics[0] === WITHDRAWAL_EVENT_TOPIC) {
           try {
             const withdrawalLog: TransferLog = {
@@ -604,16 +592,12 @@ async function parseLogsFromReceipt(
                 },
               ],
             };
-            console.log(
-              `  Parsed Withdrawal: from ${withdrawalLog.inputs[0].value}, amount: ${withdrawalLog.inputs[1].value}`
-            );
             parsedLogs.push(withdrawalLog);
           } catch (error) {
             console.error(`  Failed to parse Withdrawal event: ${error}`);
           }
         }
-
-        // Handle Deposit events (WETH)
+        // Deposit (WETH)
         else if (log.topics[0] === DEPOSIT_EVENT_TOPIC) {
           try {
             const depositLog: TransferLog = {
@@ -639,47 +623,35 @@ async function parseLogsFromReceipt(
                 },
               ],
             };
-            console.log(
-              `  Parsed Deposit: to ${depositLog.inputs[0].value}, amount: ${depositLog.inputs[1].value}`
-            );
             parsedLogs.push(depositLog);
           } catch (error) {
             console.error(`  Failed to parse Deposit event: ${error}`);
           }
         }
-
-        // Flashloan detection
+        // Flashloan detection via known contracts or ABI decode, but keep silent
         else {
           try {
             if (!isFlashLoan) {
-              // Check if it's a known flashloan contract
               const knownContract = FLASHLOAN_CONTRACTS.find(
                 (contract) =>
                   contract.address.toLowerCase() === log.address.toLowerCase()
               );
 
               if (knownContract) {
-                console.log(`Known flashloan contract: ${knownContract.name}`);
                 isFlashLoan = true;
                 if (!detectedFlashloanContracts.includes(knownContract.name)) {
                   detectedFlashloanContracts.push(knownContract.name);
                 }
-                return parsedLogs;
               } else {
-                // Try to decode event to check if it's a flashloan
                 const event = await getABIAndDecodeLog(log.address, {
                   topics: log.topics,
                   data: log.data,
                 });
-                console.log(`Event decoded: ${event.name}`);
-
                 if (event.name === "FlashLoan") {
                   isFlashLoan = true;
-                  console.log(`Flashloan detected via event: ${event.name}`);
                   if (!detectedFlashloanContracts.includes("Unknown")) {
                     detectedFlashloanContracts.push("Unknown");
                   }
-                  return parsedLogs;
                 }
               }
             }
