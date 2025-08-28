@@ -40,8 +40,7 @@ export async function calculateProfitByToken(): Promise<ProfitResult[]> {
         if (balance.type === "Revenue" || balance.type === "Cost") {
           if (
             balance.type === "Revenue" &&
-            (address === senderAddress.toLowerCase() ||
-              address === contractAddress.toLowerCase())
+            address === senderAddress.toLowerCase()
           ) {
             detectedProfitTakers.add(address.toLowerCase());
           }
