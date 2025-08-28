@@ -103,7 +103,7 @@ function getAddressRole(
   const addr = address.toLowerCase();
   // if (addr === senderAddress.toLowerCase()) return "sender";
   // if (addr === contractAddress.toLowerCase()) return "contract";
-  // if (addr === builderAddress.toLowerCase()) return "builder";
+  if (addr === builderAddress.toLowerCase()) return "builder";
 
   // Check if it's a profit taker using the global detection
   if (detectedProfitTakers.has(addr)) {
